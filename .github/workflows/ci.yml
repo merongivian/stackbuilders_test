@@ -65,6 +65,12 @@ jobs:
       - name: Lint code for consistent style
         run: bin/rubocop -f github
 
+      - name: Verify git gate hooks are present and executable
+        run: |
+          test -x .githooks/pre-commit
+          test -x .githooks/pre-push
+          grep -q 'core.hooksPath' bin/setup
+
   test:
     runs-on: ubuntu-latest
 
@@ -141,7 +147,13 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432
           # RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           # REDIS_URL: redis://localhost:6379/0
-        run: bin/rails db:test:prepare && bundle exec rspec spec/system
+        run: |
+          bin/rails db:test:prepare
+          if [ -d spec/system ]; then
+            bundle exec rspec spec/system
+          else
+            echo "No system specs yet; nothing to run."
+          fi
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4

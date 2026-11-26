@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Hard gate: nothing gets committed unless these checks pass.
+# Installed by bin/setup via `git config core.hooksPath .githooks`.
+set -euo pipefail
+
+red() { printf '\n\033[31m✗ %s\033[0m\n\n' "$*" >&2; }
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# 1. No secrets.
+secrets=$(printf '%s\n' "$staged" | grep -E '(^|/)\.env(\.|$)|config/master\.key|config/credentials/.*\.key$' || true)
+if [ -n "$secrets" ]; then
+  red "Refusing to commit secrets:
+$secrets
+Untrack them, then commit again."
+  exit 1
+fi
+
+# 2. Style: RuboCop on staged Ruby files only.
+ruby_files=$(printf '%s\n' "$staged" | grep -E '\.(rb|rake|ru)$' || true)
+if [ -n "$ruby_files" ]; then
+  # shellcheck disable=SC2086
+  if ! bundle exec rubocop --force-exclusion $ruby_files; then
+    red "RuboCop failed. Fix the offenses above, then commit again."
+    exit 1
+  fi
+fi
+
+# 3. TDD gate: Rails application code may not change without a spec change.
+code_changed=$(printf '%s\n' "$staged" | grep -E '^app/(models|controllers|policies|jobs|mailers|services|queries)/.*\.rb$' || true)
+spec_changed=$(printf '%s\n' "$staged" | grep -E '^spec/' || true)
+if [ -n "$code_changed" ] && [ -z "$spec_changed" ]; then
+  red "TDD gate: application code changed with no spec change.
+
+Changed code:
+$code_changed
+
+Write the failing spec first (see spec/models/*_spec.rb for the existing
+style, factory_bot factories live in spec/factories), then commit code and
+spec together. This is a hard gate; do not use --no-verify to get around it."
+  exit 1
+fi
+
+# 4. New migrations and db/schema.rb must travel together.
+migrations=$(git diff --cached --name-only --diff-filter=A | grep -E '^db/migrate/' || true)
+schema=$(printf '%s\n' "$staged" | grep -E '^db/schema\.rb$' || true)
+if [ -n "$migrations" ] && [ -z "$schema" ]; then
+  red "Migration committed without db/schema.rb.
+
+Run bin/rails db:migrate and stage db/schema.rb with the migration."
+  exit 1
+fi
+
+exit 0
