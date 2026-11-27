@@ -17,6 +17,15 @@ gem "stimulus-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
 
+# Parse scraped HTML [https://nokogiri.org] (already a Rails dependency;
+# listed explicitly because HackerNews::Fetcher uses it directly)
+gem "nokogiri"
+
+# Talk to Hacker News [https://github.com/lostisland/faraday]; the most used
+# Ruby HTTP client, so timeouts, headers and error handling come from it rather
+# than from hand-rolled Net::HTTP calls.
+gem "faraday"
+
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
