@@ -20,11 +20,19 @@ module HackerNews
 
     # Refreshes only when nothing is stored or the entries reached the TTL.
     # Returns true when it scraped, false when the stored entries were reused.
+    #
+    # If Hacker News fails while stale entries exist, they are served instead
+    # and the error is reported; it only raises when there is nothing to serve.
     def refresh_if_stale!
       return false if fresh?
 
       refresh!
       true
+    rescue HackerNews::Error => error
+      raise unless ::Entry.exists?
+
+      Rails.error.report(error, handled: true)
+      false
     end
 
     def fresh?

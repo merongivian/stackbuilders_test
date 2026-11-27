@@ -62,6 +62,22 @@ RSpec.describe HackerNews::Snapshot do
       expect(Entry.count).to eq(30)
     end
 
+    it "keeps serving stale entries when Hacker News is down" do
+      kept = create(:entry, rank: 1, title: "Old story", word_count: 2, points_count: 5, comments_count: 1)
+      travel(described_class::TTL)
+
+      scraped = nil
+      errors = reported_errors { scraped = snapshot(down).refresh_if_stale! }
+
+      expect(scraped).to be(false)
+      expect(errors).to contain_exactly(an_instance_of(HackerNews::Client::Error))
+      expect(Entry.all).to contain_exactly(kept)
+    end
+
+    it "raises when Hacker News is down and nothing is stored" do
+      expect { snapshot(down).refresh_if_stale! }.to raise_error(HackerNews::Error)
+    end
+
     it "scrapes again once the entries reach the TTL" do
       create(:entry, rank: 1, title: "Old story", word_count: 2, points_count: 5, comments_count: 1)
       travel(described_class::TTL)
