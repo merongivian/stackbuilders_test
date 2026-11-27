@@ -138,7 +138,7 @@ RSpec.describe "GET /entries", type: :request do
 
   context "with a stale snapshot" do
     before do
-      travel_to(HackerNews::Snapshot::TTL.ago) { entry(rank: 1, title: "Old story", words: 2) }
+      travel_to(HackerNews::Snapshot::MAX_AGE.ago) { entry(rank: 1, title: "Old story", words: 2) }
     end
 
     it "scrapes Hacker News again before answering" do

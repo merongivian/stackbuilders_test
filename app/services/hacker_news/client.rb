@@ -4,7 +4,7 @@ module HackerNews
 
     URL = "https://news.ycombinator.com/".freeze
     USER_AGENT = "hackernews-crawler/1.0".freeze
-    TIMEOUT = 5 # seconds, for both connecting and reading
+    TIMEOUT_SECONDS = 5
 
     def initialize(connection: nil)
       @connection = connection || build_connection
@@ -24,8 +24,8 @@ module HackerNews
 
     def build_connection
       Faraday.new(url: URL, headers: { "User-Agent" => USER_AGENT }) do |connection|
-        connection.options.timeout = TIMEOUT
-        connection.options.open_timeout = TIMEOUT
+        connection.options.timeout = TIMEOUT_SECONDS
+        connection.options.open_timeout = TIMEOUT_SECONDS
       end
     end
   end

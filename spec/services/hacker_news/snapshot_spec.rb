@@ -46,7 +46,7 @@ RSpec.describe HackerNews::Snapshot do
 
   describe "#refresh_if_stale!" do
     # `travel` drops microseconds, so start from a whole second to keep the
-    # TTL boundary exact.
+    # max-age boundary exact.
     before { freeze_time }
 
     it "scrapes when nothing has been stored yet" do
@@ -54,9 +54,9 @@ RSpec.describe HackerNews::Snapshot do
       expect(Entry.count).to eq(30)
     end
 
-    it "reuses entries younger than the TTL without scraping" do
+    it "reuses entries younger than the max age without scraping" do
       snapshot(front_page).refresh!
-      travel(described_class::TTL - 1.second)
+      travel(described_class::MAX_AGE - 1.second)
 
       expect(snapshot(down).refresh_if_stale!).to be(false)
       expect(Entry.count).to eq(30)
@@ -64,7 +64,7 @@ RSpec.describe HackerNews::Snapshot do
 
     it "keeps serving stale entries when Hacker News is down" do
       kept = create(:entry, rank: 1, title: "Old story", word_count: 2, points_count: 5, comments_count: 1)
-      travel(described_class::TTL)
+      travel(described_class::MAX_AGE)
 
       scraped = nil
       errors = reported_errors { scraped = snapshot(down).refresh_if_stale! }
@@ -78,9 +78,9 @@ RSpec.describe HackerNews::Snapshot do
       expect { snapshot(down).refresh_if_stale! }.to raise_error(HackerNews::Error)
     end
 
-    it "scrapes again once the entries reach the TTL" do
+    it "scrapes again once the entries reach the max age" do
       create(:entry, rank: 1, title: "Old story", word_count: 2, points_count: 5, comments_count: 1)
-      travel(described_class::TTL)
+      travel(described_class::MAX_AGE)
 
       expect(snapshot(front_page).refresh_if_stale!).to be(true)
       expect(Entry.where(title: "Old story")).to be_empty

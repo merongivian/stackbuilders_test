@@ -1,28 +1,23 @@
-# JSON API over the stored Hacker News front page. Callers say who they are
-# with ?user=<name>, and every request they make is logged.
-#
-#   GET /entries?user=jose                      every entry, by rank
-#   GET /entries?user=jose&filter=long_titles   more than five words, most comments first
-#   GET /entries?user=jose&filter=short_titles  five words or fewer, most points first
 class EntriesController < ActionController::API
   before_action :require_user
 
   def index
     @filter = params[:filter].presence
-    # Checked before refreshing so a bad request never triggers a scrape. The
-    # relation is lazy, so it is loaded after the refresh below.
-    @entries = Entry.filtered_by(@filter) or return render_unknown_filter
+    return render_unknown_filter if @filter && Entry::FILTERS.exclude?(@filter)
 
     @cache_hit = !HackerNews::Snapshot.new.refresh_if_stale!
+    @entries = Entry.filtered_by(@filter)
     @fetched_at = Entry.scraped_at
-    # Rendered explicitly so the response is complete before the log is written.
+    # Rendered here, not implicitly after the action, so it happens before the
+    # log is written in `ensure`.
     render :index
   rescue HackerNews::Error
-    # Only reached when Hacker News fails and nothing is stored to fall back on.
+    # The snapshot falls back to stale entries, so this only happens when
+    # nothing has been stored yet.
     render json: { error: "Hacker News is unavailable, try again later" }, status: :service_unavailable
   ensure
-    # Every outcome is logged. An unexpected error is still logged, but as 200,
-    # since Rails turns it into a 500 only after the action.
+    # Also runs on unexpected errors, which are logged as 200: Rails turns them
+    # into a 500 only after the action.
     log_request
   end
 
@@ -34,7 +29,6 @@ class EntriesController < ActionController::API
     render json: { error: "Missing user. Pass your name as ?user=<name>" }, status: :bad_request
   end
 
-  # created_at is the request timestamp.
   def log_request
     RequestLog.create!(
       user_name: params[:user],

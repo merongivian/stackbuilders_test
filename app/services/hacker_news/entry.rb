@@ -1,8 +1,6 @@
 module HackerNews
   class Entry
-    # A token is a word when it has a letter or digit in any script; tokens
-    # made only of symbols ("-", "≠", "|") don't count.
-    WORD = /[\p{L}\p{N}]/
+    LETTER_OR_DIGIT = /[\p{L}\p{N}]/
 
     def initialize(row)
       @row = row
@@ -16,16 +14,15 @@ module HackerNews
       @row.at_css("span.titleline > a")&.text&.strip
     end
 
-    # Words are split on whitespace only, so punctuation attached to a word
-    # stays part of it: "This is - a self-explained example" is 5 words.
     def word_count
-      title.to_s.split.count { |token| token.match?(WORD) }
+      title.to_s.split.count { |token| token.match?(LETTER_OR_DIGIT) }
     end
 
     def points_count
       number(subtext&.at_css("span.score")&.text)
     end
 
+    # The last link reads "N comments", or "discuss" when there are none.
     def comments_count
       link = subtext&.css("a")&.reverse&.find { |a| a.text.match?(/\bcomments?\b|discuss/i) }
 
@@ -38,7 +35,7 @@ module HackerNews
 
     private
 
-    # The points/comments line is the row right after the title row.
+    # Hacker News puts points and comments in the row after the title row.
     def subtext
       @row.xpath("following-sibling::tr[1]").first&.at_css("td.subtext")
     end
