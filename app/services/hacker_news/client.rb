@@ -1,6 +1,6 @@
 module HackerNews
   class Client
-    class Error < StandardError; end
+    class Error < HackerNews::Error; end
 
     URL = "https://news.ycombinator.com/".freeze
     USER_AGENT = "hackernews-crawler/1.0".freeze

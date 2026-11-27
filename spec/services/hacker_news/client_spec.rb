@@ -18,6 +18,10 @@ RSpec.describe HackerNews::Client do
     expect(client(respond(body: body)).get).to eq(body)
   end
 
+  it "raises errors callers can rescue as HackerNews::Error" do
+    expect { client(respond(status: 503)).get }.to raise_error(HackerNews::Error)
+  end
+
   it "raises its own error for a non-success response" do
     expect { client(respond(status: 503)).get }
       .to raise_error(described_class::Error, /503/)

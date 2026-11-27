@@ -36,9 +36,11 @@ RSpec.describe HackerNews::Fetcher do
     expect(fetcher.call.size).to eq(4)
   end
 
-  it "returns an empty collection for a page with no entries" do
+  # The front page always lists stories, so finding none means the markup
+  # changed or the page is broken; storing nothing would hide that.
+  it "raises for a page with no entries" do
     allow(client).to receive(:get).and_return("<html><body><table></table></body></html>")
 
-    expect(fetcher.call).to eq([])
+    expect { fetcher.call }.to raise_error(HackerNews::Error, /no entries/)
   end
 end

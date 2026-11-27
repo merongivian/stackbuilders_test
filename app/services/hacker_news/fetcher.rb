@@ -8,8 +8,14 @@ module HackerNews
       @client = client
     end
 
+    # Raises HackerNews::Error when the page lists no entries: the front page
+    # always has stories, so an empty result means the markup changed or the
+    # page is broken, and returning [] would hide that.
     def call
-      Nokogiri::HTML5(@client.get).css("tr.athing").map { |row| Entry.new(row) }
+      rows = Nokogiri::HTML5(@client.get).css("tr.athing")
+      raise Error, "Hacker News page has no entries" if rows.empty?
+
+      rows.map { |row| Entry.new(row) }
     end
   end
 end
