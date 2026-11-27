@@ -29,6 +29,57 @@ RSpec.describe Entry, type: :model do
     end
   end
 
+  def entry(rank:, words:, comments: 0, points: 0)
+    create(:entry, rank: rank, title: "Story #{rank}", word_count: words,
+                   comments_count: comments, points_count: points)
+  end
+
+  describe ".long_titles" do
+    it "keeps only titles with more than five words" do
+      six = entry(rank: 1, words: 6)
+      entry(rank: 2, words: 5)
+
+      expect(described_class.long_titles).to contain_exactly(six)
+    end
+
+    it "orders by number of comments, most first" do
+      few = entry(rank: 1, words: 7, comments: 3)
+      many = entry(rank: 2, words: 8, comments: 90)
+
+      expect(described_class.long_titles).to eq([ many, few ])
+    end
+
+    it "breaks ties by front-page rank" do
+      second = entry(rank: 2, words: 6, comments: 10)
+      first = entry(rank: 1, words: 6, comments: 10)
+
+      expect(described_class.long_titles).to eq([ first, second ])
+    end
+  end
+
+  describe ".short_titles" do
+    it "keeps only titles with five words or fewer" do
+      five = entry(rank: 1, words: 5)
+      entry(rank: 2, words: 6)
+
+      expect(described_class.short_titles).to contain_exactly(five)
+    end
+
+    it "orders by points, most first" do
+      few = entry(rank: 1, words: 2, points: 4)
+      many = entry(rank: 2, words: 3, points: 400)
+
+      expect(described_class.short_titles).to eq([ many, few ])
+    end
+
+    it "breaks ties by front-page rank" do
+      second = entry(rank: 2, words: 4, points: 10)
+      first = entry(rank: 1, words: 4, points: 10)
+
+      expect(described_class.short_titles).to eq([ first, second ])
+    end
+  end
+
   describe ".scraped_at" do
     it "is when the stored snapshot was saved" do
       freeze_time
