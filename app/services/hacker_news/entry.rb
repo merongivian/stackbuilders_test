@@ -1,5 +1,9 @@
 module HackerNews
   class Entry
+    # A token is a word when it has a letter or digit in any script; tokens
+    # made only of symbols ("-", "≠", "|") don't count.
+    WORD = /[\p{L}\p{N}]/
+
     def initialize(row)
       @row = row
     end
@@ -10,6 +14,12 @@ module HackerNews
 
     def title
       @row.at_css("span.titleline > a")&.text&.strip
+    end
+
+    # Words are split on whitespace only, so punctuation attached to a word
+    # stays part of it: "This is - a self-explained example" is 5 words.
+    def word_count
+      title.to_s.split.count { |token| token.match?(WORD) }
     end
 
     def points_count
@@ -23,7 +33,7 @@ module HackerNews
     end
 
     def to_h
-      { rank: rank, title: title, points_count: points_count, comments_count: comments_count }
+      { rank: rank, title: title, word_count: word_count, points_count: points_count, comments_count: comments_count }
     end
 
     private

@@ -50,7 +50,50 @@ RSpec.describe HackerNews::Entry do
 
   it "exposes a hash for persistence" do
     expect(entry_at(2).to_h).to eq(
-      rank: 2, title: "AMD Specific Patches for Llama.cpp", points_count: 19, comments_count: 4
+      rank: 2, title: "AMD Specific Patches for Llama.cpp", word_count: 5,
+      points_count: 19, comments_count: 4
     )
+  end
+
+  describe "#word_count" do
+    def entry_titled(title)
+      html = %(<table><tr class="athing"><td><span class="titleline"><a>#{CGI.escapeHTML(title)}</a></span></td></tr></table>)
+      described_class.new(Nokogiri::HTML5(html).at_css("tr.athing"))
+    end
+
+    def word_count(title)
+      entry_titled(title).word_count
+    end
+
+    it "counts the example from the brief as five words" do
+      expect(word_count("This is - a self-explained example")).to eq(5)
+    end
+
+    it "ignores tokens made only of symbols" do
+      expect(word_count("NP_R ≠ PAR_R")).to eq(2)
+      expect(word_count("Rails | Ruby & — Postgres")).to eq(3)
+    end
+
+    it "keeps punctuation attached to a word as one word" do
+      expect(word_count("Show HN: Don't use C++")).to eq(5)
+    end
+
+    it "counts numbers as words" do
+      expect(word_count("Rust 1.80 released")).to eq(3)
+    end
+
+    it "counts words in any script" do
+      expect(word_count("Café über naïve 東京")).to eq(4)
+    end
+
+    it "treats any run of whitespace as a single separator" do
+      expect(word_count("  spaced \t out\nwords  ")).to eq(3)
+    end
+
+    it "is zero for a row without a title" do
+      row = Nokogiri::HTML5(%(<table><tr class="athing"><td></td></tr></table>)).at_css("tr.athing")
+
+      expect(described_class.new(row).word_count).to eq(0)
+    end
   end
 end
