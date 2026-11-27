@@ -80,6 +80,25 @@ RSpec.describe Entry, type: :model do
     end
   end
 
+  describe ".filtered_by" do
+    let!(:long) { entry(rank: 2, words: 6, comments: 1) }
+    let!(:short) { entry(rank: 1, words: 2, points: 1) }
+
+    it "returns every entry in rank order without a filter" do
+      expect(described_class.filtered_by(nil)).to eq([ short, long ])
+    end
+
+    it "applies a known filter" do
+      expect(described_class.filtered_by("long_titles")).to eq([ long ])
+      expect(described_class.filtered_by("short_titles")).to eq([ short ])
+    end
+
+    it "is nil for an unknown filter" do
+      expect(described_class.filtered_by("destroy_all")).to be_nil
+      expect(described_class.count).to eq(2)
+    end
+  end
+
   describe ".scraped_at" do
     it "is when the stored snapshot was saved" do
       freeze_time

@@ -78,4 +78,7 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+
+  # Stub Hacker News in specs and block any real HTTP [https://github.com/bblimke/webmock]
+  gem "webmock"
 end
