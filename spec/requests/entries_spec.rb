@@ -8,8 +8,73 @@ RSpec.describe "GET /entries", type: :request do
     create(:entry, rank: rank, title: title, word_count: words, comments_count: comments, points_count: points)
   end
 
+  def get_entries(user: "jose", **params)
+    get "/entries", params: { user: user, **params }.compact
+  end
+
   def json
     response.parsed_body
+  end
+
+  context "without a user" do
+    it "is rejected before anything is scraped or logged" do
+      get_entries(user: nil)
+
+      expect(response).to have_http_status(:bad_request)
+      expect(json["error"]).to eq("Missing user. Pass your name as ?user=<name>")
+      expect(RequestLog.count).to eq(0)
+      expect(a_request(:get, hacker_news)).not_to have_been_made
+    end
+  end
+
+  describe "usage log" do
+    let(:log) { RequestLog.sole }
+
+    context "with a fresh snapshot" do
+      before do
+        entry(rank: 1, title: "Short and sweet", words: 3)
+        entry(rank: 2, title: "A title that is clearly quite long", words: 7)
+      end
+
+      it "records who asked for which filter, when, and what they got" do
+        freeze_time
+
+        get_entries(user: "ada", filter: "long_titles")
+
+        expect(log).to have_attributes(
+          user_name: "ada", filter_type: "long_titles", status: 200,
+          cache_hit: true, entries_returned: 1, created_at: Time.current
+        )
+      end
+
+      it "records 'none' when no filter is applied" do
+        get_entries
+
+        expect(log).to have_attributes(filter_type: "none", entries_returned: 2)
+      end
+
+      it "records a rejected filter as asked, with no entries" do
+        get_entries(filter: "bogus")
+
+        expect(log).to have_attributes(filter_type: "bogus", status: 400, cache_hit: nil, entries_returned: nil)
+      end
+    end
+
+    it "records a cache miss when Hacker News was scraped" do
+      stub_request(:get, hacker_news).to_return(status: 200, body: front_page)
+
+      get_entries
+
+      expect(log).to have_attributes(cache_hit: false, entries_returned: 30)
+    end
+
+    it "records an outage" do
+      stub_request(:get, hacker_news).to_timeout
+
+      get_entries
+
+      expect(log).to have_attributes(status: 503, entries_returned: nil)
+    end
   end
 
   context "with a fresh snapshot" do
@@ -21,7 +86,7 @@ RSpec.describe "GET /entries", type: :request do
     end
 
     it "lists every entry in rank order without a filter" do
-      get "/entries"
+      get_entries
 
       expect(response).to have_http_status(:ok)
       expect(json["filter"]).to be_nil
@@ -29,7 +94,7 @@ RSpec.describe "GET /entries", type: :request do
     end
 
     it "describes each entry by rank, title, points, comments and word count" do
-      get "/entries"
+      get_entries
 
       expect(json["entries"].first).to eq(
         "rank" => 1, "title" => "Short and sweet", "points" => 50, "comments" => 1, "word_count" => 3
@@ -37,7 +102,7 @@ RSpec.describe "GET /entries", type: :request do
     end
 
     it "lists long titles by comments with filter=long_titles" do
-      get "/entries", params: { filter: "long_titles" }
+      get_entries(filter: "long_titles")
 
       expect(json["filter"]).to eq("long_titles")
       expect(json["entries"].pluck("title")).to eq(
@@ -46,25 +111,25 @@ RSpec.describe "GET /entries", type: :request do
     end
 
     it "lists short titles by points with filter=short_titles" do
-      get "/entries", params: { filter: "short_titles" }
+      get_entries(filter: "short_titles")
 
       expect(json["entries"].pluck("title")).to eq([ "Tiny", "Short and sweet" ])
     end
 
     it "says when the entries were scraped" do
-      get "/entries"
+      get_entries
 
       expect(Time.zone.parse(json["fetched_at"])).to be_within(1.second).of(Entry.scraped_at)
     end
 
     it "serves the stored entries without contacting Hacker News" do
-      get "/entries"
+      get_entries
 
       expect(a_request(:get, hacker_news)).not_to have_been_made
     end
 
     it "rejects an unknown filter and names the valid ones" do
-      get "/entries", params: { filter: "bogus" }
+      get_entries(filter: "bogus")
 
       expect(response).to have_http_status(:bad_request)
       expect(json["error"]).to eq("Unknown filter 'bogus'. Valid filters: long_titles, short_titles")
@@ -79,7 +144,7 @@ RSpec.describe "GET /entries", type: :request do
     it "scrapes Hacker News again before answering" do
       stub_request(:get, hacker_news).to_return(status: 200, body: front_page)
 
-      get "/entries"
+      get_entries
 
       expect(json["entries"].size).to eq(30)
       expect(json["entries"].first["title"]).to eq("NP_R ≠ PAR_R")
@@ -88,7 +153,7 @@ RSpec.describe "GET /entries", type: :request do
     it "serves the stale entries when Hacker News is down" do
       stub_request(:get, hacker_news).to_return(status: 503)
 
-      get "/entries"
+      get_entries
 
       expect(response).to have_http_status(:ok)
       expect(json["entries"].pluck("title")).to eq([ "Old story" ])
@@ -99,7 +164,7 @@ RSpec.describe "GET /entries", type: :request do
     it "is unavailable while Hacker News is down" do
       stub_request(:get, hacker_news).to_timeout
 
-      get "/entries"
+      get_entries
 
       expect(response).to have_http_status(:service_unavailable)
       expect(json["error"]).to eq("Hacker News is unavailable, try again later")

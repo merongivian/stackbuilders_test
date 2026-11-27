@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_27_221335) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_27_221510) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -30,6 +30,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_27_221335) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "user_name", null: false
+    t.integer "status"
+    t.boolean "cache_hit"
+    t.integer "entries_returned"
     t.index ["filter_type", "created_at"], name: "index_request_logs_on_filter_type_and_created_at"
     t.index ["user_name"], name: "index_request_logs_on_user_name"
   end
