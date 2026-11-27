@@ -2,22 +2,16 @@ require "rails_helper"
 
 RSpec.describe RequestLog, type: :model do
   it "requires the applied filter" do
-    log = build(:request_log, filter_type: "", user: nil)
+    log = build(:request_log, filter_type: "", user_name: "jose")
 
     expect(log).not_to be_valid
     expect(log.errors[:filter_type]).to include("can't be blank")
   end
 
-  it "logs anonymous requests without a user" do
-    log = build(:request_log, filter_type: "short_titles", user: nil)
+  it "requires the name of the user who made the request" do
+    log = build(:request_log, filter_type: "long_titles", user_name: "")
 
-    expect(log).to be_valid
-  end
-
-  it "links a request to the user who made it" do
-    user = create(:user, name: "Ada Lovelace", email: "ada@example.com")
-    log = create(:request_log, filter_type: "long_titles", user: user)
-
-    expect(user.request_logs).to contain_exactly(log)
+    expect(log).not_to be_valid
+    expect(log.errors[:user_name]).to include("can't be blank")
   end
 end
